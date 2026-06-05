@@ -319,10 +319,10 @@ export function DashboardHome() {
             <AccesoRapido label="Criterios de Evaluación"  icon={CheckSquare}  href="/dashboard/convocatorias" />
             <AccesoRapido label="Asignar Revisores"        icon={UserCheck}    href="/dashboard/usuarios" />
             <AccesoRapido label="Selección de Ganadores"   icon={Star}         href="/dashboard/convocatorias" />
-            <AccesoRapido label="Analytics Avanzado"       icon={BarChart2}    disabled />
-            <AccesoRapido label="Mensajería Masiva"        icon={MessageSquare} disabled />
-            <AccesoRapido label="Respaldos / Exportación"  icon={Archive}      disabled />
-            <AccesoRapido label="Configuración Plataforma" icon={Settings}     disabled />
+            <AccesoRapido label="Analytics Avanzado"       icon={BarChart2}    href="/dashboard/analytics" />
+            <AccesoRapido label="Mensajería Masiva"        icon={MessageSquare} href="/dashboard/mensajeria" />
+            <AccesoRapido label="Respaldos / Exportación"  icon={Archive}      href="/dashboard/respaldos" />
+            <AccesoRapido label="Configuración Plataforma" icon={Settings}     href="/dashboard/configuracion" />
           </div>
         </section>
 
