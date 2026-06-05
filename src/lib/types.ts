@@ -228,6 +228,31 @@ export interface DashboardStats {
   etapasCompletadas: number
 }
 
+export interface UltimaPostulacion {
+  id: number
+  postulanteNombre: string
+  convocatoriaTitulo: string
+  fecha: string
+  estado: string
+}
+
+export interface PuntoTemporal {
+  fecha: string
+  enviadas: number
+  creadas: number
+}
+
+export interface DashboardGlobal {
+  convocatoriasActivas: number
+  totalPostulaciones: number
+  revisoresAsignados: number
+  seleccionados: number
+  seleccionadosPorcentaje: number
+  postulacionesPorEstado: Record<string, number>
+  ultimasPostulaciones: UltimaPostulacion[]
+  evolucionTemporal: PuntoTemporal[]
+}
+
 // ---- API Genérica ----
 
 export interface ApiError {
