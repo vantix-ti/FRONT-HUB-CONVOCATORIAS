@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* resto del archivo igual... */
+
+
+/* ====================================================
+   Variables CSS del tema oscuro — Hub Convocatorias
+   ==================================================== */
+:root {
+  --color-background: #08100E;
+  --color-surface: #0F1A18;
+  --color-surface-hover: #1A2E2A;
+  --color-border: #1E2D2A;
+  --color-primary: #337BD9;
+  --color-primary-hover: #2563C0;
+  --color-text-main: #F0F4F8;
+  --color-text-muted: #8899A6;
+
+  /* Shadcn UI CSS Variables */
+  --background: 160 30% 5%;
+  --foreground: 210 40% 96%;
+  --card: 162 26% 8%;
+  --card-foreground: 210 40% 96%;
+  --popover: 162 26% 8%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 214 67% 52%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 162 22% 12%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 163 22% 14%;
+  --muted-foreground: 205 18% 57%;
+  --accent: 162 28% 14%;
+  --accent-foreground: 210 40% 96%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 163 24% 15%;
+  --input: 163 24% 15%;
+  --ring: 214 67% 52%;
+  --radius: 0.75rem;
+}
+
+/* ====================================================
+   Estilos globales base
+   ==================================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #08100E;
+  color: #F0F4F8;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* ====================================================
+   Scrollbar personalizado
+   ==================================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #08100E;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E2D2A;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #337BD9;
+}
+
+/* ====================================================
+   Selección de texto
+   ==================================================== */
+::selection {
+  background-color: #337BD940;
+  color: #F0F4F8;
+}
+
+/* ====================================================
+   Animaciones de entrada
+   ==================================================== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ====================================================
+   Input type=date — color del placeholder en oscuro
+   ==================================================== */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6);
+  cursor: pointer;
+}
+
+/* ====================================================
+   Focus ring global
+   ==================================================== */
+:focus-visible {
+  outline: 2px solid #337BD9;
+  outline-offset: 2px;
+}
