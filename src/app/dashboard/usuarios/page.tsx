@@ -12,9 +12,7 @@ import { toast } from "@/hooks/useToast";
 import { Users, UserPlus, Shield, User, Eye, EyeOff, Mail, KeyRound, Building2 } from "lucide-react";
 import type { Usuario, Institucion } from "@/lib/types";
 
-const ROLES_BASE  = ["ADMIN", "REVISOR", "POSTULANTE"] as const;
-const ROLES_VANTIX = ["ADMIN", "GESTOR", "REVISOR", "POSTULANTE"] as const;
-type Rol = "ADMIN" | "GESTOR" | "REVISOR" | "POSTULANTE";
+type Rol = "ADMIN" | "GESTOR" | "REVISOR";
 
 const rolColor: Record<string, string> = {
   ADMIN:      "bg-red-500/15 text-red-400 border-red-500/30",
@@ -26,9 +24,9 @@ const rolIcon: Record<string, React.ElementType> = {
   ADMIN: Shield, GESTOR: Building2, REVISOR: Eye, POSTULANTE: User,
 };
 
-const EMPTY = {
+const EMPTY_FORM = {
   nombre: "", apellidoPaterno: "", apellidoMaterno: "",
-  email: "", telefono: "", rol: "POSTULANTE" as Rol,
+  email: "", telefono: "", rol: "REVISOR" as Rol,
 };
 
 export default function UsuariosPage() {
@@ -38,9 +36,11 @@ export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [instituciones, setInstituciones] = useState<Institucion[]>([]);
   const [isVantix, setIsVantix] = useState(false);
+  const [isGestor, setIsGestor] = useState(false);
+  const [miInstitucionId, setMiInstitucionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [passwordMode, setPasswordMode] = useState<"auto" | "manual">("auto");
@@ -56,10 +56,18 @@ export default function UsuariosPage() {
       const us = await listarUsuarios(token);
       setUsuarios(us);
 
-      // Determinar si el admin actual es de Vantix
-      const instId = session?.institucionId;
+      // Detectar tipo de usuario logueado
+      const roles = session?.roles ?? [];
+      const isGestorRole = (Array.isArray(roles) ? roles : [roles]).some(
+        (r: string) => r === "GESTOR" || r === "ROLE_GESTOR"
+      );
+      setIsGestor(isGestorRole);
+
+      const instId = session?.institucionId ?? null;
+      setMiInstitucionId(instId ? Number(instId) : null);
+
       if (instId) {
-        const miInst = await getInstitucion(instId, token).catch(() => null);
+        const miInst = await getInstitucion(Number(instId), token).catch(() => null);
         const esVantix = miInst?.nombre?.toLowerCase().includes("vantix") ?? false;
         setIsVantix(esVantix);
         if (esVantix) {
@@ -67,25 +75,31 @@ export default function UsuariosPage() {
           setInstituciones(insts);
         }
       } else {
-        // Sin institución en el token → admin legacy (Vantix)
+        // Sin institucionId en token → admin legacy (Vantix)
         setIsVantix(true);
         const insts = await getInstituciones(token).catch(() => [] as Institucion[]);
         setInstituciones(insts);
       }
     } catch {
       toast({ title: "Error al cargar usuarios", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [session]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  // Nombre de institución a partir del ID
+  // Reglas de roles disponibles:
+  // Vantix ADMIN → ADMIN, GESTOR, REVISOR (sin POSTULANTE — se registran solos)
+  // GESTOR otra empresa → GESTOR, REVISOR (sin ADMIN, sin POSTULANTE)
+  const ROLES_DISPONIBLES: Rol[] = isVantix
+    ? ["ADMIN", "GESTOR", "REVISOR"]
+    : ["GESTOR", "REVISOR"];
+
+  // Mostrar campo institución: solo Vantix y solo para GESTOR/REVISOR
+  const mostrarInstitucion = isVantix && (form.rol === "GESTOR" || form.rol === "REVISOR");
+
   const instNombre = (u: Usuario): string | null => {
     if (!u.institucionId) return null;
-    return instituciones.find(i => i.id === (u.institucionId as unknown as number))?.nombre
-      ?? `#${u.institucionId}`;
+    return instituciones.find(i => i.id === Number(u.institucionId))?.nombre ?? `#${u.institucionId}`;
   };
 
   async function handleCrear(e: React.FormEvent) {
@@ -105,8 +119,8 @@ export default function UsuariosPage() {
         ...(passwordMode === "manual" ? { password } : {}),
       };
 
-      // Institución para GESTOR (solo Vantix puede asignar)
-      if (isVantix && form.rol === "GESTOR") {
+      if (mostrarInstitucion) {
+        // Vantix asignando institución a GESTOR/REVISOR
         if (selectedInstitucionId) {
           payload.institucionId = selectedInstitucionId;
         } else if (newInstNombre.trim()) {
@@ -114,6 +128,9 @@ export default function UsuariosPage() {
           payload.institucionId = String(inst.id);
           setInstituciones(prev => [...prev, inst]);
         }
+      } else if (isGestor && miInstitucionId) {
+        // GESTOR crea usuarios de su propia institución automáticamente
+        payload.institucionId = String(miInstitucionId);
       }
 
       await crearUsuario(payload as Parameters<typeof crearUsuario>[0], token);
@@ -124,7 +141,7 @@ export default function UsuariosPage() {
           : "La cuenta está activa con la contraseña ingresada.",
         variant: "success",
       });
-      setForm(EMPTY); setPassword(""); setPasswordMode("auto");
+      setForm(EMPTY_FORM); setPassword(""); setPasswordMode("auto");
       setSelectedInstitucionId(""); setNewInstNombre("");
       setShowForm(false);
       cargar();
@@ -144,8 +161,6 @@ export default function UsuariosPage() {
       toast({ title: "Error al cambiar rol", variant: "destructive" });
     }
   }
-
-  const ROLES_DISPONIBLES = isVantix ? ROLES_VANTIX : ROLES_BASE;
 
   return (
     <div className="space-y-6">
@@ -171,7 +186,13 @@ export default function UsuariosPage() {
       {/* Formulario nuevo usuario */}
       {showForm && (
         <div className="rounded-xl border border-border bg-surface p-6">
-          <h2 className="text-base font-semibold text-text-main mb-4">Crear nuevo usuario</h2>
+          <h2 className="text-base font-semibold text-text-main mb-1">Crear nuevo usuario</h2>
+          {isGestor && (
+            <p className="text-xs text-purple-400 mb-4 flex items-center gap-1.5">
+              <Building2 size={12} />
+              Los usuarios se asociarán automáticamente a tu institución.
+            </p>
+          )}
           <form onSubmit={handleCrear} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
@@ -191,7 +212,6 @@ export default function UsuariosPage() {
                 <Input value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} disabled={saving} />
               </div>
             </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Correo electrónico *</Label>
@@ -199,36 +219,29 @@ export default function UsuariosPage() {
               </div>
               <div className="space-y-1">
                 <Label>Rol *</Label>
-                <select
-                  value={form.rol}
-                  onChange={e => {
-                    setForm(f => ({ ...f, rol: e.target.value as Rol }));
-                    setSelectedInstitucionId(""); setNewInstNombre("");
-                  }}
+                <select value={form.rol}
+                  onChange={e => { setForm(f => ({ ...f, rol: e.target.value as Rol })); setSelectedInstitucionId(""); setNewInstNombre(""); }}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary"
-                  disabled={saving}
-                >
+                  disabled={saving}>
                   {ROLES_DISPONIBLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>
 
-            {/* Sección institución — solo Vantix y solo para GESTOR */}
-            {isVantix && form.rol === "GESTOR" && (
+            {/* Institución — solo Vantix, solo para GESTOR/REVISOR */}
+            {mostrarInstitucion && (
               <div className="rounded-lg border border-purple-900/40 bg-purple-900/10 p-4 space-y-3">
-                <div className="flex items-center gap-2 text-purple-300 mb-1">
-                  <Building2 size={14} />
-                  <span className="text-xs font-semibold">Institución del Gestor</span>
+                <div className="flex items-center gap-2 text-purple-300">
+                  <Building2 size={13} />
+                  <span className="text-xs font-semibold">Institución asignada</span>
                 </div>
                 {instituciones.length > 0 && (
                   <div className="space-y-1">
                     <Label className="text-xs">Seleccionar institución existente</Label>
-                    <select
-                      value={selectedInstitucionId}
+                    <select value={selectedInstitucionId}
                       onChange={e => { setSelectedInstitucionId(e.target.value); if (e.target.value) setNewInstNombre(""); }}
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary"
-                      disabled={saving}
-                    >
+                      disabled={saving}>
                       <option value="">— Nueva institución —</option>
                       {instituciones.map(i => <option key={i.id} value={String(i.id)}>{i.nombre}</option>)}
                     </select>
@@ -236,15 +249,9 @@ export default function UsuariosPage() {
                 )}
                 {!selectedInstitucionId && (
                   <div className="space-y-1">
-                    <Label className="text-xs">
-                      Nombre de nueva institución{instituciones.length === 0 ? " *" : ""}
-                    </Label>
-                    <Input
-                      placeholder="Ej. Mi Empresa SpA"
-                      value={newInstNombre}
-                      onChange={e => setNewInstNombre(e.target.value)}
-                      disabled={saving}
-                    />
+                    <Label className="text-xs">Nombre de nueva institución</Label>
+                    <Input placeholder="Ej. Mi Empresa SpA" value={newInstNombre}
+                      onChange={e => setNewInstNombre(e.target.value)} disabled={saving} />
                   </div>
                 )}
               </div>
@@ -257,12 +264,12 @@ export default function UsuariosPage() {
                 {(["auto", "manual"] as const).map(m => (
                   <button key={m} type="button" onClick={() => setPasswordMode(m)}
                     className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${passwordMode === m ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:border-primary/50"}`}>
-                    {m === "auto" ? <><Mail className="h-3.5 w-3.5" /> Enviar por correo</> : <><KeyRound className="h-3.5 w-3.5" /> Ingresar manualmente</>}
+                    {m === "auto" ? <><Mail className="h-3.5 w-3.5" />Enviar por correo</> : <><KeyRound className="h-3.5 w-3.5" />Ingresar manualmente</>}
                   </button>
                 ))}
               </div>
               {passwordMode === "auto" ? (
-                <p className="text-xs text-text-muted">Se enviará un correo con un enlace de activación (válido 72 h).</p>
+                <p className="text-xs text-text-muted">Se enviará correo con enlace de activación (válido 72 h).</p>
               ) : (
                 <div className="space-y-1">
                   <Label className="text-xs">Contraseña (mínimo 8 caracteres) *</Label>
@@ -275,7 +282,6 @@ export default function UsuariosPage() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <p className="text-xs text-text-muted">La cuenta quedará activa de inmediato.</p>
                 </div>
               )}
             </div>
@@ -288,7 +294,7 @@ export default function UsuariosPage() {
         </div>
       )}
 
-      {/* Tabla de usuarios */}
+      {/* Tabla */}
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         {loading ? (
           <div className="py-12 text-center text-sm text-text-muted">Cargando usuarios...</div>
@@ -301,16 +307,14 @@ export default function UsuariosPage() {
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Usuario</th>
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Correo</th>
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Rol</th>
-                {isVantix && (
-                  <th className="px-4 py-3 text-left font-medium text-text-muted">Institución</th>
-                )}
+                {isVantix && <th className="px-4 py-3 text-left font-medium text-text-muted">Institución</th>}
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Estado</th>
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Cambiar rol</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {usuarios.map(u => {
-                const rol = (u.roles?.[0] ?? "POSTULANTE");
+                const rol = u.roles?.[0] ?? "POSTULANTE";
                 const RolIcon = rolIcon[rol] ?? User;
                 const inst = instNombre(u);
                 return (
@@ -319,20 +323,14 @@ export default function UsuariosPage() {
                     <td className="px-4 py-3 text-text-muted">{u.email}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${rolColor[rol] ?? ""}`}>
-                        <RolIcon className="h-3 w-3" />
-                        {rol}
+                        <RolIcon className="h-3 w-3" />{rol}
                       </span>
                     </td>
                     {isVantix && (
                       <td className="px-4 py-3 text-xs text-text-muted">
-                        {inst ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <Building2 size={11} className="text-purple-400 shrink-0" />
-                            {inst}
-                          </span>
-                        ) : (
-                          <span className="text-text-muted/40">—</span>
-                        )}
+                        {inst
+                          ? <span className="inline-flex items-center gap-1.5"><Building2 size={11} className="text-purple-400 shrink-0" />{inst}</span>
+                          : <span className="text-text-muted/40">—</span>}
                       </td>
                     )}
                     <td className="px-4 py-3">
@@ -344,13 +342,10 @@ export default function UsuariosPage() {
                       {u.email === selfEmail ? (
                         <span className="text-xs text-text-muted italic">—</span>
                       ) : (
-                        <select
-                          key={String(u.id) + "-" + rol}
-                          defaultValue={rol}
+                        <select key={String(u.id) + rol} defaultValue={rol}
                           onChange={e => handleCambiarRol(String(u.id), e.target.value)}
-                          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-text-main focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          {ROLES_DISPONIBLES.map(r => <option key={r} value={r}>{r}</option>)}
+                          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-text-main focus:outline-none focus:ring-1 focus:ring-primary">
+                          {["ADMIN","GESTOR","REVISOR","POSTULANTE"].map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       )}
                     </td>

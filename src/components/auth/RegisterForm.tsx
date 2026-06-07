@@ -9,19 +9,19 @@ import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/useToast'
 import { encryptPassword } from '@/lib/crypto'
 import { bff } from '@/lib/bff'
-import { Eye, EyeOff, UserPlus, Building2, ChevronDown } from 'lucide-react'
-import type { RegisterRequest, RegisterGestorRequest } from '@/lib/types'
+import { Eye, EyeOff, UserPlus, Building2, User } from 'lucide-react'
+import type { RegisterRequest } from '@/lib/types'
 
-type RolSeleccion = 'POSTULANTE' | 'GESTOR'
+type TipoRegistro = 'natural' | 'empresa'
 
 export function RegisterForm() {
   const router = useRouter()
-  const [rolSeleccionado, setRolSeleccionado] = useState<RolSeleccion>('POSTULANTE')
+  const [tipo, setTipo] = useState<TipoRegistro>('natural')
   const [form, setForm] = useState({
     nombre: '', apellidoPaterno: '', apellidoMaterno: '',
     email: '', password: '', confirmPassword: '', telefono: '',
-    // datos institución (solo GESTOR)
-    instNombre: '', instRut: '', instDireccion: '', instTelefono: '', instEmail: '',
+    empresaNombre: '', empresaRut: '', empresaDireccion: '',
+    empresaTelefono: '', empresaEmail: '',
   })
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -29,15 +29,15 @@ export function RegisterForm() {
 
   function validate(): boolean {
     const errs: Record<string, string> = {}
-    if (!form.nombre.trim())          errs.nombre          = 'El nombre es requerido'
-    if (!form.apellidoPaterno.trim()) errs.apellidoPaterno = 'El apellido paterno es requerido'
-    if (!form.email.trim())           errs.email           = 'El correo es requerido'
+    if (!form.nombre.trim())           errs.nombre          = 'El nombre es requerido'
+    if (!form.apellidoPaterno.trim())  errs.apellidoPaterno = 'El apellido paterno es requerido'
+    if (!form.email.trim())            errs.email           = 'El correo es requerido'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Formato de correo inválido'
-    if (!form.password)               errs.password        = 'La contraseña es requerida'
-    else if (form.password.length < 8) errs.password       = 'Mínimo 8 caracteres'
+    if (!form.password)                errs.password        = 'La contraseña es requerida'
+    else if (form.password.length < 8) errs.password        = 'Mínimo 8 caracteres'
     if (form.password !== form.confirmPassword) errs.confirmPassword = 'Las contraseñas no coinciden'
-    if (rolSeleccionado === 'GESTOR' && !form.instNombre.trim())
-      errs.instNombre = 'El nombre de la institución es requerido'
+    if (tipo === 'empresa' && !form.empresaNombre.trim())
+      errs.empresaNombre = 'El nombre de la empresa es requerido'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -48,34 +48,22 @@ export function RegisterForm() {
     setLoading(true)
     try {
       const passwordEncrypted = await encryptPassword(form.password)
-
-      if (rolSeleccionado === 'GESTOR') {
-        const body: RegisterGestorRequest = {
-          nombre:         form.nombre.trim(),
-          apellidoPaterno: form.apellidoPaterno.trim(),
-          apellidoMaterno: form.apellidoMaterno.trim(),
-          email:          form.email.trim().toLowerCase(),
-          passwordEncrypted,
-          telefono:       form.telefono.trim(),
-          instNombre:     form.instNombre.trim(),
-          instRut:        form.instRut.trim() || undefined,
-          instDireccion:  form.instDireccion.trim() || undefined,
-          instTelefono:   form.instTelefono.trim() || undefined,
-          instEmail:      form.instEmail.trim() || undefined,
-        }
-        await bff.post('/auth/register-gestor', body)
-      } else {
-        const body: RegisterRequest = {
-          nombre:         form.nombre.trim(),
-          apellidoPaterno: form.apellidoPaterno.trim(),
-          apellidoMaterno: form.apellidoMaterno.trim(),
-          email:          form.email.trim().toLowerCase(),
-          passwordEncrypted,
-          telefono:       form.telefono.trim(),
-        }
-        await bff.post('/auth/register', body)
+      const body: RegisterRequest = {
+        nombre:         form.nombre.trim(),
+        apellidoPaterno: form.apellidoPaterno.trim(),
+        apellidoMaterno: form.apellidoMaterno.trim() || undefined,
+        email:          form.email.trim().toLowerCase(),
+        passwordEncrypted,
+        telefono:       form.telefono.trim() || undefined,
+        ...(tipo === 'empresa' ? {
+          empresaNombre:    form.empresaNombre.trim(),
+          empresaRut:       form.empresaRut.trim()       || undefined,
+          empresaDireccion: form.empresaDireccion.trim() || undefined,
+          empresaTelefono:  form.empresaTelefono.trim()  || undefined,
+          empresaEmail:     form.empresaEmail.trim()     || undefined,
+        } : {}),
       }
-
+      await bff.post('/auth/register', body)
       toast({
         title: 'Cuenta creada exitosamente',
         description: 'Revisa tu correo para confirmar tu cuenta.',
@@ -88,36 +76,35 @@ export function RegisterForm() {
         description: err instanceof Error ? err.message : 'Error desconocido',
         variant: 'destructive',
       })
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   function field(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((f) => ({ ...f, [key]: e.target.value }))
+      setForm(f => ({ ...f, [key]: e.target.value }))
   }
-
-  const inputCls = "w-full"
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
 
-      {/* Selector de tipo de cuenta */}
+      {/* Selector tipo de registro */}
       <div className="space-y-2">
-        <Label>Tipo de cuenta</Label>
+        <Label>Tipo de registro</Label>
         <div className="grid grid-cols-2 gap-2">
           {([
-            { val: 'POSTULANTE' as RolSeleccion, label: 'Postulante', desc: 'Participa en convocatorias' },
-            { val: 'GESTOR'     as RolSeleccion, label: 'Gestor',     desc: 'Administra su institución' },
-          ] as const).map(opt => (
-            <button key={opt.val} type="button" onClick={() => setRolSeleccionado(opt.val)}
+            { val: 'natural' as TipoRegistro, icon: User,      label: 'Persona Natural', desc: 'Registro individual' },
+            { val: 'empresa' as TipoRegistro, icon: Building2, label: 'Empresa',          desc: 'Postulas como empresa' },
+          ]).map(opt => (
+            <button key={opt.val} type="button" onClick={() => setTipo(opt.val)}
               className={`text-left rounded-lg border p-3 transition-colors ${
-                rolSeleccionado === opt.val
+                tipo === opt.val
                   ? 'border-primary bg-primary/10 text-white'
                   : 'border-border bg-surface/50 text-text-muted hover:border-primary/40'
               }`}>
-              <p className="text-sm font-semibold">{opt.label}</p>
+              <div className="flex items-center gap-2 mb-0.5">
+                <opt.icon className="h-4 w-4" />
+                <p className="text-sm font-semibold">{opt.label}</p>
+              </div>
               <p className="text-xs opacity-70">{opt.desc}</p>
             </button>
           ))}
@@ -175,51 +162,46 @@ export function RegisterForm() {
         {errors.confirmPassword && <p className="text-xs text-red-400">{errors.confirmPassword}</p>}
       </div>
 
-      {/* Sección de institución — solo para GESTOR */}
-      {rolSeleccionado === 'GESTOR' && (
+      {/* Datos de empresa — solo si tipo === empresa */}
+      {tipo === 'empresa' && (
         <div className="rounded-xl border border-blue-900/40 bg-blue-900/10 p-5 space-y-4">
           <div className="flex items-center gap-2 text-blue-300">
-            <Building2 size={16} />
-            <span className="text-sm font-semibold">Datos de tu institución o empresa</span>
+            <Building2 size={15} />
+            <span className="text-sm font-semibold">Datos de la empresa</span>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="instNombre">Nombre de la institución *</Label>
-            <Input id="instNombre" placeholder="Ej. Mi Empresa SpA" value={form.instNombre}
-              onChange={field('instNombre')} disabled={loading} />
-            {errors.instNombre && <p className="text-xs text-red-400">{errors.instNombre}</p>}
+            <Label htmlFor="empresaNombre">Nombre de la empresa *</Label>
+            <Input id="empresaNombre" placeholder="Ej. Mi Empresa SpA" value={form.empresaNombre} onChange={field('empresaNombre')} disabled={loading} />
+            {errors.empresaNombre && <p className="text-xs text-red-400">{errors.empresaNombre}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="instRut">RUT</Label>
-              <Input id="instRut" placeholder="77.000.000-0" value={form.instRut}
-                onChange={field('instRut')} disabled={loading} />
+              <Label htmlFor="empresaRut">RUT empresa</Label>
+              <Input id="empresaRut" placeholder="77.000.000-0" value={form.empresaRut} onChange={field('empresaRut')} disabled={loading} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="instTelefono">Teléfono institución</Label>
-              <Input id="instTelefono" placeholder="+56 2 2000 0000" value={form.instTelefono}
-                onChange={field('instTelefono')} disabled={loading} />
+              <Label htmlFor="empresaTelefono">Teléfono empresa</Label>
+              <Input id="empresaTelefono" placeholder="+56 2 2000 0000" value={form.empresaTelefono} onChange={field('empresaTelefono')} disabled={loading} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="instDireccion">Dirección</Label>
-            <Input id="instDireccion" placeholder="Av. Ejemplo 123, Santiago" value={form.instDireccion}
-              onChange={field('instDireccion')} disabled={loading} />
+            <Label htmlFor="empresaDireccion">Dirección</Label>
+            <Input id="empresaDireccion" placeholder="Av. Ejemplo 123, Santiago" value={form.empresaDireccion} onChange={field('empresaDireccion')} disabled={loading} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="instEmail">Correo institución</Label>
-            <Input id="instEmail" type="email" placeholder="contacto@empresa.cl" value={form.instEmail}
-              onChange={field('instEmail')} disabled={loading} />
+            <Label htmlFor="empresaEmail">Correo empresa</Label>
+            <Input id="empresaEmail" type="email" placeholder="contacto@empresa.cl" value={form.empresaEmail} onChange={field('empresaEmail')} disabled={loading} />
           </div>
         </div>
       )}
 
       <Button type="submit" className="w-full gap-2 mt-2" disabled={loading}>
         <UserPlus className="h-4 w-4" />
-        {loading ? 'Creando cuenta...' : rolSeleccionado === 'GESTOR' ? 'Crear cuenta de gestor' : 'Crear cuenta'}
+        {loading ? 'Creando cuenta...' : 'Crear cuenta'}
       </Button>
 
       <p className="text-center text-sm text-text-muted">

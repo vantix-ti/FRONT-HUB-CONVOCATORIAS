@@ -30,10 +30,16 @@ export interface LoginResponse {
 export interface RegisterRequest {
   nombre: string
   apellidoPaterno: string
-  apellidoMaterno: string
+  apellidoMaterno?: string
   email: string
   passwordEncrypted: string
-  telefono: string
+  telefono?: string
+  // Campos empresa (postulante tipo empresa — opcionales)
+  empresaNombre?: string
+  empresaRut?: string
+  empresaDireccion?: string
+  empresaTelefono?: string
+  empresaEmail?: string
 }
 
 export interface ResetPasswordRequest {
