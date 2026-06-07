@@ -1,10 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { AuthProvider } from '@/context/AuthContext'
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
-import { Toaster } from '@/components/ui/toaster'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -32,14 +28,7 @@ export default function RootLayout({
         className="min-h-screen flex flex-col bg-background text-text-main antialiased"
         suppressHydrationWarning
       >
-        <AuthProvider>
-          <Navbar />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-          <Toaster />
-        </AuthProvider>
+        {children}
       </body>
     </html>
   )
