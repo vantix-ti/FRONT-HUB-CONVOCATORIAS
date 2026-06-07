@@ -235,7 +235,8 @@ export function DashboardHome() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!token || !hasRole('ADMIN')) return
+    if (!token) return
+    if (!hasRole('ADMIN') && !hasRole('GESTOR')) return
     setLoading(true)
     getDashboardGlobal(token)
       .then(setData)
@@ -411,6 +412,171 @@ export function DashboardHome() {
                     <span className="hidden sm:flex items-center gap-1 text-xs text-[#4a6660] whitespace-nowrap">
                       <Clock size={11} />
                       {formatFecha(p.fecha)}
+                    </span>
+                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap ${ESTADO_BADGE[p.estado] ?? 'bg-gray-700 text-gray-300'}`}>
+                      {ESTADO_LABELS[p.estado] ?? p.estado}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[#4a6660] text-center py-8">No hay postulaciones aún</p>
+            )}
+          </div>
+        </section>
+
+      </div>
+    )
+  }
+
+  // ── GESTOR ──────────────────────────────────
+  if (hasRole('GESTOR')) {
+    return (
+      <div className="space-y-8">
+
+        {/* Cabecera */}
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="mt-1 text-sm text-[#8aa8a0]">
+            Vista de tu institución · {session?.email}
+          </p>
+        </div>
+
+        {/* ── KPIs ── */}
+        <section>
+          {error && (
+            <div className="mb-4 rounded-xl border border-red-900 bg-red-900/10 p-4 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {loading ? (
+              [0, 1, 2, 3].map((i) => (
+                <div key={i} className="rounded-xl border border-[#1e3a34] bg-[#0d1f1c] p-5 space-y-3">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-2 w-32" />
+                </div>
+              ))
+            ) : (
+              <>
+                <KpiCard
+                  title="Convocatorias activas"
+                  value={data?.convocatoriasActivas ?? 0}
+                  subtitle="Publicadas por tu institución"
+                  icon={FileText}
+                  iconColor="text-blue-400"
+                />
+                <KpiCard
+                  title="Total postulaciones"
+                  value={data?.totalPostulaciones ?? 0}
+                  subtitle="En convocatorias de tu institución"
+                  icon={ClipboardList}
+                  iconColor="text-green-400"
+                />
+                <KpiCard
+                  title="Revisores asignados"
+                  value={data?.revisoresAsignados ?? 0}
+                  subtitle="Revisores de tu institución"
+                  icon={Users}
+                  iconColor="text-purple-400"
+                />
+                <KpiCard
+                  title="Seleccionados"
+                  value={data ? `${data.seleccionados} (${data.seleccionadosPorcentaje}%)` : '0 (0%)'}
+                  subtitle="Del total de postulaciones"
+                  icon={Trophy}
+                  iconColor="text-amber-400"
+                />
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* ── Accesos rápidos ── */}
+        <section>
+          <h2 className="text-base font-semibold text-white mb-4">Accesos rápidos</h2>
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+            <AccesoRapido label="Convocatorias"      icon={FileText}    href="/dashboard/convocatorias" />
+            <AccesoRapido label="Gestión usuarios"   icon={Users}       href="/dashboard/usuarios" />
+            <AccesoRapido label="Asignar Revisores"  icon={UserCheck}   href="/dashboard/usuarios" />
+            <AccesoRapido label="Configuración"      icon={Settings}    href="/dashboard/configuracion" />
+          </div>
+        </section>
+
+        {/* ── Gráficos ── */}
+        <section className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-xl border border-[#1e3a34] bg-[#0d1f1c] p-5">
+            <h3 className="text-sm font-semibold text-white mb-5">Postulaciones por estado</h3>
+            {loading ? (
+              <div className="space-y-3">
+                {[80, 100, 60, 40, 30].map((w, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="h-3 w-24 shrink-0" />
+                    <Skeleton className="h-6" style={{ width: `${w}%` }} />
+                  </div>
+                ))}
+              </div>
+            ) : data && Object.keys(data.postulacionesPorEstado).length > 0 ? (
+              <BarChart data={data.postulacionesPorEstado} />
+            ) : (
+              <p className="text-sm text-[#4a6660] text-center py-8">Sin datos disponibles</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-[#1e3a34] bg-[#0d1f1c] p-5">
+            <h3 className="text-sm font-semibold text-white mb-5">
+              Evolución temporal{' '}
+              <span className="text-[#4a6660] text-xs font-normal">(últimos 14 días)</span>
+            </h3>
+            {loading ? (
+              <Skeleton className="h-36 w-full" />
+            ) : data && data.evolucionTemporal.length > 0 ? (
+              <LineChart data={data.evolucionTemporal} />
+            ) : (
+              <p className="text-sm text-[#4a6660] text-center py-8">Sin datos disponibles</p>
+            )}
+          </div>
+        </section>
+
+        {/* ── Últimas postulaciones ── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-white">Últimas postulaciones</h2>
+            <Link href="/dashboard/convocatorias" className="text-xs text-[#337BD9] hover:underline">
+              Ver todo →
+            </Link>
+          </div>
+          <div className="rounded-xl border border-[#1e3a34] bg-[#0d1f1c] overflow-hidden">
+            <div className="grid grid-cols-[1fr_1.5fr_auto_auto] gap-4 px-4 py-2 text-xs font-medium text-[#4a6660] uppercase tracking-wide border-b border-[#1e3a34]">
+              <span>Postulante</span><span>Convocatoria</span>
+              <span className="hidden sm:block">Fecha</span><span>Estado</span>
+            </div>
+            {loading ? (
+              <div className="divide-y divide-[#1e3a34]">
+                {[0,1,2].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-4">
+                    <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3 w-32" /><Skeleton className="h-2 w-48" />
+                    </div>
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : data && data.ultimasPostulaciones.length > 0 ? (
+              <div className="divide-y divide-[#1e3a34]">
+                {data.ultimasPostulaciones.map((p) => (
+                  <div key={p.id} className="grid grid-cols-[1fr_1.5fr_auto_auto] gap-4 items-center px-4 py-3 hover:bg-[#0f2a26] transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#337BD9]/20 text-[#337BD9] flex items-center justify-center text-sm font-bold shrink-0">
+                        {getInitial(p.postulanteNombre)}
+                      </div>
+                      <span className="text-sm text-[#a8c4be] truncate">{p.postulanteNombre}</span>
+                    </div>
+                    <span className="text-sm text-[#8aa8a0] truncate">{p.convocatoriaTitulo}</span>
+                    <span className="hidden sm:flex items-center gap-1 text-xs text-[#4a6660] whitespace-nowrap">
+                      <Clock size={11} />{formatFecha(p.fecha)}
                     </span>
                     <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap ${ESTADO_BADGE[p.estado] ?? 'bg-gray-700 text-gray-300'}`}>
                       {ESTADO_LABELS[p.estado] ?? p.estado}
