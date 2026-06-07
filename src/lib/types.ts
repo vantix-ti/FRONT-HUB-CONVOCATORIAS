@@ -307,6 +307,7 @@ export interface CreateInstitucionRequest {
   telefono?: string
   email?: string
   logoUrl?: string
+  activo?: boolean
 }
 
 // ---- Configuración de Plataforma ----

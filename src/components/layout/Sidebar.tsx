@@ -3,48 +3,47 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useIsVantixAdmin } from '@/hooks/useIsVantixAdmin'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, FileText, ClipboardList, Star, Bell, User, Users, ChevronRight } from 'lucide-react'
+import {
+  LayoutDashboard, FileText, ClipboardList, Star, Bell, User,
+  Users, ChevronRight, Building2, FilePlus,
+} from 'lucide-react'
 
 interface NavItem {
   href: string
   label: string
   icon: React.ElementType
-  roles?: ('ADMIN' | 'POSTULANTE' | 'REVISOR')[]
+  roles?: ('ADMIN' | 'GESTOR' | 'POSTULANTE' | 'REVISOR')[]
+  vantixOnly?: boolean
 }
 
-const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard',             label: 'Dashboard',        icon: LayoutDashboard },
+  { href: '/dashboard/convocatorias', label: 'Convocatorias',  icon: FileText,        roles: ['ADMIN', 'GESTOR'] },
+  { href: '/mis-postulaciones',     label: 'Mis postulaciones', icon: ClipboardList,  roles: ['POSTULANTE', 'ADMIN'] },
+  { href: '/evaluaciones',          label: 'Mis evaluaciones',  icon: Star,           roles: ['REVISOR'] },
+  { href: '/notificaciones',        label: 'Notificaciones',    icon: Bell },
+  { href: '/perfil',                label: 'Mi perfil',         icon: User },
+  { href: '/dashboard/usuarios',    label: 'Usuarios',          icon: Users,           roles: ['ADMIN', 'GESTOR'] },
   {
-    href: '/dashboard/convocatorias',
-    label: 'Convocatorias',
-    icon: FileText,
+    href: '/dashboard/instituciones',
+    label: 'Instituciones',
+    icon: Building2,
     roles: ['ADMIN'],
+    vantixOnly: true,
   },
-  {
-    href: '/mis-postulaciones',
-    label: 'Mis postulaciones',
-    icon: ClipboardList,
-    roles: ['POSTULANTE', 'ADMIN'],
-  },
-  {
-    href: '/evaluaciones',
-    label: 'Mis evaluaciones',
-    icon: Star,
-    roles: ['REVISOR'],
-  },
-  { href: '/notificaciones', label: 'Notificaciones', icon: Bell },
-  { href: '/perfil', label: 'Mi perfil', icon: User },
-  { href: '/dashboard/usuarios', label: 'Usuarios', icon: Users, roles: ['ADMIN'] as const },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const { session, hasRole } = useAuth()
+  const { isVantixAdmin } = useIsVantixAdmin()
 
-  const visibleItems = navItems.filter((item) => {
+  const visibleItems = NAV_ITEMS.filter(item => {
+    if (item.vantixOnly && !isVantixAdmin) return false
     if (!item.roles) return true
-    return item.roles.some((r) => hasRole(r))
+    return item.roles.some(r => hasRole(r))
   })
 
   return (
@@ -78,10 +77,9 @@ export function Sidebar() {
         </div>
       )}
 
-
       {/* Navegación */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {visibleItems.map((item) => {
+        {visibleItems.map(item => {
           const Icon = item.icon
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
@@ -105,17 +103,22 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Admin extra */}
-      {hasRole('ADMIN') && (
+      {/* Admin extra — solo Vantix ADMIN */}
+      {isVantixAdmin && (
         <div className="border-t border-border px-3 py-4">
           <p className="px-3 py-1 text-[10px] uppercase tracking-widest text-text-muted font-semibold mb-2">
             Administración
           </p>
           <Link
             href="/dashboard/convocatorias/nueva"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-text-muted hover:bg-surface-hover hover:text-text-main transition-colors"
+            className={cn(
+              'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+              pathname === '/dashboard/convocatorias/nueva'
+                ? 'bg-primary/15 text-primary'
+                : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+            )}
           >
-            <Users className="h-4 w-4" />
+            <FilePlus className="h-4 w-4" />
             Nueva convocatoria
           </Link>
         </div>
