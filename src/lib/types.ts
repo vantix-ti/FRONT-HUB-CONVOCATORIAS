@@ -309,6 +309,7 @@ export interface Institucion {
   email?: string
   logoUrl?: string
   activo: boolean
+  slug?: string
   creadoEn?: string
 }
 
@@ -320,6 +321,7 @@ export interface CreateInstitucionRequest {
   email?: string
   logoUrl?: string
   activo?: boolean
+  slug?: string
 }
 
 // ---- Configuración de Plataforma ----

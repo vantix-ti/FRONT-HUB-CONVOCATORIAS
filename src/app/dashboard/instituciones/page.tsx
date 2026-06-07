@@ -177,6 +177,7 @@ export default function InstitucionesPage() {
       telefono:  inst.telefono  ?? "",
       email:     inst.email     ?? "",
       logoUrl:   inst.logoUrl   ?? undefined,
+      slug:      inst.slug      ?? '',
     });
     setErrors({}); setShowForm(true);
     setTimeout(() => document.getElementById("inst-form")?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -208,6 +209,7 @@ export default function InstitucionesPage() {
       telefono:  form.telefono?.trim()  || undefined,
       email:     form.email?.trim()     || undefined,
       logoUrl:   form.logoUrl           || undefined,
+      slug:      (form.slug as string)?.trim() || undefined,
     };
     try {
       if (editingId !== null) {
@@ -327,6 +329,19 @@ export default function InstitucionesPage() {
                 value={form.email ?? ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 disabled={saving} />
               {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
+            </div>
+
+            {/* Slug (URL) */}
+            <div className="space-y-1">
+              <Label htmlFor="inst-slug">Slug de URL</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-muted shrink-0">/{}</span>
+                <Input id="inst-slug" placeholder="ej: municipalidad-providencia"
+                  value={(form as any).slug ?? ''}
+                  onChange={e => setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }))}
+                  disabled={saving} />
+              </div>
+              <p className="text-xs text-text-muted/60">URL de acceso público: <span className="text-primary">/{(form as any).slug || 'slug'}</span></p>
             </div>
 
             {/* Acciones */}

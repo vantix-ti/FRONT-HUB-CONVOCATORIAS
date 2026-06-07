@@ -12,3 +12,7 @@ export async function updateConfiguracion(
 ): Promise<ConfiguracionPlataformaResponse> {
   return bff.put<ConfiguracionPlataformaResponse>(`/configuracion/${institucionId}`, valores, { token })
 }
+
+export async function getConfiguracionBySlug(slug: string): Promise<import("@/lib/types").ConfiguracionPlataformaResponse> {
+  return bff.getNoCache(`/configuracion/public/${slug}`)
+}

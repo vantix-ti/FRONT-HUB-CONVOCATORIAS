@@ -16,3 +16,7 @@ export async function createInstitucion(data: CreateInstitucionRequest, token: s
 export async function updateInstitucion(id: number, data: CreateInstitucionRequest, token: string): Promise<Institucion> {
   return bff.put<Institucion>(`/instituciones/${id}`, data, { token })
 }
+
+export async function getInstitucionBySlug(slug: string): Promise<Institucion> {
+  return bff.getNoCache<Institucion>(`/instituciones/slug/${slug}`)
+}
