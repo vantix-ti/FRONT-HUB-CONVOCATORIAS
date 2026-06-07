@@ -3,7 +3,7 @@
 // ============================================================
 
 // --- Roles del sistema ---
-export type Rol = 'ADMIN' | 'POSTULANTE' | 'REVISOR'
+export type Rol = 'ADMIN' | 'GESTOR' | 'POSTULANTE' | 'REVISOR'
 
 // --- Estado de convocatoria ---
 export type EstadoConvocatoria = 'BORRADOR' | 'PUBLICADA' | 'CERRADA' | 'CANCELADA'
@@ -277,5 +277,49 @@ export interface JwtPayload {
   roles: Rol[] | string   // ← cambiado de Rol[]
   exp: number
   iat: number
+  institucionId?: number
 }
 
+
+// ---- Institución ----
+export interface Institucion {
+  id: number
+  nombre: string
+  rut?: string
+  direccion?: string
+  telefono?: string
+  email?: string
+  logoUrl?: string
+  activo: boolean
+  creadoEn?: string
+}
+
+export interface CreateInstitucionRequest {
+  nombre: string
+  rut?: string
+  direccion?: string
+  telefono?: string
+  email?: string
+  logoUrl?: string
+}
+
+// ---- Configuración de Plataforma ----
+export interface ConfiguracionPlataformaResponse {
+  institucionId: number
+  valores: Record<string, string>
+}
+
+// ---- Registro de Gestor ----
+export interface RegisterGestorRequest {
+  nombre: string
+  apellidoPaterno: string
+  apellidoMaterno?: string
+  email: string
+  passwordEncrypted: string
+  telefono?: string
+  instNombre: string
+  instRut?: string
+  instDireccion?: string
+  instTelefono?: string
+  instEmail?: string
+}
