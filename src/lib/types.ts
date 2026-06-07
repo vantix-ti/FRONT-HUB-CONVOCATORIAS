@@ -79,9 +79,20 @@ export interface Convocatoria {
   fechaInicio: string
   fechaFin: string
   organizacion: string
-  imagen?: string
+  imagen?: string        // base64 data URL
+  documentos?: DocumentoAdjunto[]
   creadoEn: string
   actualizadoEn: string
+}
+
+export interface DocumentoAdjunto {
+  id?: number
+  nombre: string
+  descripcion?: string   // máx 100 chars
+  contenido: string      // base64 data URL
+  tipoMime?: string
+  tamanio?: number
+  creadoEn?: string
 }
 
 export interface CreateConvocatoriaRequest {
@@ -90,7 +101,8 @@ export interface CreateConvocatoriaRequest {
   fechaInicio: string
   fechaFin: string
   organizacion: string
-  imagen?: string
+  imagen?: string        // base64 data URL
+  documentos?: DocumentoAdjunto[]
 }
 
 export interface UpdateConvocatoriaRequest extends CreateConvocatoriaRequest {}
