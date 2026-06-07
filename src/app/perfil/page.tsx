@@ -220,7 +220,7 @@ export default function PerfilPage() {
         </div>
       )}
 
-      {/* ── Información personal ── */
+      {/* ── Información personal ── */}
       <div className="rounded-xl border border-border bg-surface p-8">
         <h2 className="text-base font-semibold text-text-main mb-6">Información personal</h2>
         <form onSubmit={handleSubmit} className="space-y-5">
