@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Settings, Save, CheckCircle, Loader2, Building2 } from 'lucide-react'
 import Link from 'next/link'
-import { useSession } from '@/hooks/useSession'
+import { useAuth } from '@/hooks/useAuth'
 import { getConfiguracion, updateConfiguracion } from '@/lib/api/configuracion'
 import { toast } from '@/hooks/useToast'
 
@@ -76,7 +76,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 const inputCls = "w-full rounded-lg border border-[#1e3a34] bg-[#0a1a17] px-4 py-2.5 text-sm text-white placeholder-[#4a6660] focus:border-[#337BD9] focus:outline-none"
 
 export default function ConfiguracionPage() {
-  const { session } = useSession()
+  const { session } = useAuth()
   const [cfg, setCfg] = useState<PlatformConfig>(DEFAULT_CONFIG)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

@@ -60,8 +60,8 @@ export async function cambiarPassword(
 
 /** Crear usuario con rol específico (ADMIN) */
 export async function crearUsuario(
-  data: { nombre: string; apellidoPaterno: string; apellidoMaterno: string;
-          email: string; telefono: string; rol: string; password?: string },
+  data: { nombre: string; apellidoPaterno: string; apellidoMaterno?: string;
+          email: string; telefono?: string; rol: string; password?: string; institucionId?: string },
   token: string
 ): Promise<Usuario> {
   return bff.post<Usuario>('/usuarios', data, { token })

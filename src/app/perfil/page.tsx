@@ -9,7 +9,9 @@ import { getTokenClient } from '@/lib/auth'
 import { getMe, updateMe, cambiarPassword } from '@/lib/api/usuarios'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import type { Usuario } from '@/lib/types'
-import { User, Save, KeyRound, Eye, EyeOff, Shield, CheckCircle2, Clock } from 'lucide-react'
+import { User, Save, KeyRound, Eye, EyeOff, Shield, CheckCircle2, Clock, Building2 } from 'lucide-react'
+import { getInstitucion } from '@/lib/api/instituciones'
+import type { Institucion } from '@/lib/types'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +79,7 @@ export default function PerfilPage() {
   const [pwNueva, setPwNueva]     = useState('')
   const [pwConfirm, setPwConfirm] = useState('')
   const [savingPw, setSavingPw]   = useState(false)
+  const [institucion, setInstitucion] = useState<Institucion | null>(null)
 
   useEffect(() => {
     const token = getTokenClient()
@@ -90,6 +93,9 @@ export default function PerfilPage() {
           apellidoMaterno: u.apellidoMaterno ?? '',
           telefono:        u.telefono        ?? '',
         })
+        if (u.institucionId) {
+          getInstitucion(u.institucionId).then(setInstitucion).catch(() => {})
+        }
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
@@ -181,7 +187,40 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* ── Información personal ── */}
+
+      {/* Institución */}
+      {institucion && (
+        <div className="rounded-xl border border-purple-900/30 bg-purple-900/10 px-6 py-4 flex flex-wrap gap-6 items-center">
+          <div className="flex items-center gap-3">
+            <Building2 className="h-4 w-4 text-purple-400 shrink-0" />
+            <div>
+              <p className="text-xs text-text-muted mb-0.5">Institución / Empresa</p>
+              <p className="text-sm font-semibold text-white">{institucion.nombre}</p>
+              {institucion.rut && <p className="text-xs text-text-muted">RUT: {institucion.rut}</p>}
+            </div>
+          </div>
+          {institucion.email && (
+            <div>
+              <p className="text-xs text-text-muted mb-0.5">Correo institución</p>
+              <p className="text-sm text-white">{institucion.email}</p>
+            </div>
+          )}
+          {institucion.telefono && (
+            <div>
+              <p className="text-xs text-text-muted mb-0.5">Teléfono</p>
+              <p className="text-sm text-white">{institucion.telefono}</p>
+            </div>
+          )}
+          {institucion.direccion && (
+            <div>
+              <p className="text-xs text-text-muted mb-0.5">Dirección</p>
+              <p className="text-sm text-white">{institucion.direccion}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Información personal ── */
       <div className="rounded-xl border border-border bg-surface p-8">
         <h2 className="text-base font-semibold text-text-main mb-6">Información personal</h2>
         <form onSubmit={handleSubmit} className="space-y-5">
