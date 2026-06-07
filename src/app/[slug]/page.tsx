@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { FileText, Calendar, Building2, LogIn, UserPlus } from 'lucide-react'
+import { SlugTracker } from './_components/SlugTracker'
 
 // ─── Fetch helpers (server-side) ─────────────────────────────────────────────
 
@@ -90,6 +91,8 @@ export default async function SlugPage({ params }: { params: Promise<{ slug: str
 
   return (
     <div style={{ ...cssVars, backgroundColor: colorFondo, color: colorTexto, minHeight: '100vh' }}>
+      {/* Guarda el slug para que logout() pueda volver acá */}
+      <SlugTracker slug={slug} />
 
       {/* ── Header ── */}
       <header style={{ borderBottom: `1px solid ${colorPrimario}22`, backgroundColor: colorFondo + 'ee' }}

@@ -87,7 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading: false,
       isAuthenticated: false,
     })
-    window.location.href = '/auth/login'
+    // Si el usuario llegó desde una página institucional, volver a ella
+    const institutionSlug = typeof window !== 'undefined'
+      ? localStorage.getItem('hub-institution-slug')
+      : null
+    if (institutionSlug) {
+      window.location.href = `/${institutionSlug}`
+    } else {
+      window.location.href = '/auth/login'
+    }
   }, [])
 
   const hasRole = useCallback(
