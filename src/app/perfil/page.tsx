@@ -94,7 +94,8 @@ export default function PerfilPage() {
           telefono:        u.telefono        ?? '',
         })
         if (u.institucionId) {
-          getInstitucion(u.institucionId).then(setInstitucion).catch(() => {})
+          const tk = token
+          getInstitucion(u.institucionId, tk).then(setInstitucion).catch(() => {})
         }
       })
       .catch(err => setError(err.message))

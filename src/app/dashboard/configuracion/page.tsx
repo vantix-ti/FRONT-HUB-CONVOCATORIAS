@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Settings, Save, CheckCircle, Loader2, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
+import { getTokenClient } from '@/lib/auth'
 import { getConfiguracion, updateConfiguracion } from '@/lib/api/configuracion'
 import { toast } from '@/hooks/useToast'
 
@@ -90,7 +91,8 @@ export default function ConfiguracionPage() {
     }
     setInstitucionId(session.institucionId)
     try {
-      const data = await getConfiguracion(session.institucionId)
+      const token = getTokenClient() ?? ''
+      const data = await getConfiguracion(session.institucionId, token)
       setCfg(mapApiToConfig(data.valores))
     } catch {
       toast({ title: 'Error al cargar configuración', variant: 'destructive' })
@@ -106,7 +108,8 @@ export default function ConfiguracionPage() {
     if (!institucionId) return
     setSaving(true)
     try {
-      await updateConfiguracion(institucionId, mapConfigToApi(cfg))
+      const token = getTokenClient() ?? ''
+      await updateConfiguracion(institucionId, mapConfigToApi(cfg), token)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
       toast({ title: 'Configuración guardada', variant: 'success' })

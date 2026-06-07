@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getTokenClient } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { listarUsuarios, crearUsuario, updateRolUsuario } from "@/lib/api/usuarios";
-import { getInstituciones } from "@/lib/api/instituciones";
+import { getInstituciones, getInstitucion, createInstitucion } from "@/lib/api/instituciones";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +12,9 @@ import { toast } from "@/hooks/useToast";
 import { Users, UserPlus, Shield, User, Eye, EyeOff, Mail, KeyRound, Building2 } from "lucide-react";
 import type { Usuario, Institucion } from "@/lib/types";
 
-const ROLES = ["ADMIN", "GESTOR", "REVISOR", "POSTULANTE"] as const;
-type Rol = (typeof ROLES)[number];
+const ROLES_BASE  = ["ADMIN", "REVISOR", "POSTULANTE"] as const;
+const ROLES_VANTIX = ["ADMIN", "GESTOR", "REVISOR", "POSTULANTE"] as const;
+type Rol = "ADMIN" | "GESTOR" | "REVISOR" | "POSTULANTE";
 
 const rolColor: Record<string, string> = {
   ADMIN:      "bg-red-500/15 text-red-400 border-red-500/30",
@@ -33,9 +34,12 @@ const EMPTY = {
 export default function UsuariosPage() {
   const { session } = useAuth();
   const selfEmail = session?.email || session?.sub;
+
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [instituciones, setInstituciones] = useState<Institucion[]>([]);
+  const [isVantix, setIsVantix] = useState(false);
   const [loading, setLoading] = useState(true);
+
   const [form, setForm] = useState(EMPTY);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -49,20 +53,40 @@ export default function UsuariosPage() {
     const token = getTokenClient();
     if (!token) return;
     try {
-      const [us, insts] = await Promise.all([
-        listarUsuarios(token),
-        getInstituciones().catch(() => [] as Institucion[]),
-      ]);
+      const us = await listarUsuarios(token);
       setUsuarios(us);
-      setInstituciones(insts);
+
+      // Determinar si el admin actual es de Vantix
+      const instId = session?.institucionId;
+      if (instId) {
+        const miInst = await getInstitucion(instId, token).catch(() => null);
+        const esVantix = miInst?.nombre?.toLowerCase().includes("vantix") ?? false;
+        setIsVantix(esVantix);
+        if (esVantix) {
+          const insts = await getInstituciones(token).catch(() => [] as Institucion[]);
+          setInstituciones(insts);
+        }
+      } else {
+        // Sin institución en el token → admin legacy (Vantix)
+        setIsVantix(true);
+        const insts = await getInstituciones(token).catch(() => [] as Institucion[]);
+        setInstituciones(insts);
+      }
     } catch {
       toast({ title: "Error al cargar usuarios", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  // Nombre de institución a partir del ID
+  const instNombre = (u: Usuario): string | null => {
+    if (!u.institucionId) return null;
+    return instituciones.find(i => i.id === (u.institucionId as unknown as number))?.nombre
+      ?? `#${u.institucionId}`;
+  };
 
   async function handleCrear(e: React.FormEvent) {
     e.preventDefault();
@@ -75,20 +99,23 @@ export default function UsuariosPage() {
     setSaving(true);
     try {
       const payload: Record<string, string> = {
-        ...form,
+        nombre: form.nombre, apellidoPaterno: form.apellidoPaterno,
+        apellidoMaterno: form.apellidoMaterno, email: form.email,
+        telefono: form.telefono, rol: form.rol,
         ...(passwordMode === "manual" ? { password } : {}),
       };
-      // Institución para GESTOR
-      if (form.rol === "GESTOR") {
+
+      // Institución para GESTOR (solo Vantix puede asignar)
+      if (isVantix && form.rol === "GESTOR") {
         if (selectedInstitucionId) {
           payload.institucionId = selectedInstitucionId;
         } else if (newInstNombre.trim()) {
-          // Crear nueva institución primero
-          const { createInstitucion } = await import("@/lib/api/instituciones");
-          const inst = await createInstitucion({ nombre: newInstNombre.trim() });
+          const inst = await createInstitucion({ nombre: newInstNombre.trim() }, token);
           payload.institucionId = String(inst.id);
+          setInstituciones(prev => [...prev, inst]);
         }
       }
+
       await crearUsuario(payload as Parameters<typeof crearUsuario>[0], token);
       toast({
         title: `Usuario ${form.email} creado`,
@@ -97,8 +124,7 @@ export default function UsuariosPage() {
           : "La cuenta está activa con la contraseña ingresada.",
         variant: "success",
       });
-      setForm(EMPTY);
-      setPassword(""); setPasswordMode("auto");
+      setForm(EMPTY); setPassword(""); setPasswordMode("auto");
       setSelectedInstitucionId(""); setNewInstNombre("");
       setShowForm(false);
       cargar();
@@ -119,10 +145,7 @@ export default function UsuariosPage() {
     }
   }
 
-  const instNombre = (u: Usuario) => {
-    if (!u.institucionId) return null;
-    return instituciones.find(i => i.id === u.institucionId)?.nombre ?? `#${u.institucionId}`;
-  };
+  const ROLES_DISPONIBLES = isVantix ? ROLES_VANTIX : ROLES_BASE;
 
   return (
     <div className="space-y-6">
@@ -168,6 +191,7 @@ export default function UsuariosPage() {
                 <Input value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} disabled={saving} />
               </div>
             </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Correo electrónico *</Label>
@@ -177,17 +201,20 @@ export default function UsuariosPage() {
                 <Label>Rol *</Label>
                 <select
                   value={form.rol}
-                  onChange={e => { setForm(f => ({ ...f, rol: e.target.value as Rol })); setSelectedInstitucionId(""); setNewInstNombre(""); }}
+                  onChange={e => {
+                    setForm(f => ({ ...f, rol: e.target.value as Rol }));
+                    setSelectedInstitucionId(""); setNewInstNombre("");
+                  }}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary"
                   disabled={saving}
                 >
-                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  {ROLES_DISPONIBLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>
 
-            {/* Sección institución — solo para GESTOR */}
-            {form.rol === "GESTOR" && (
+            {/* Sección institución — solo Vantix y solo para GESTOR */}
+            {isVantix && form.rol === "GESTOR" && (
               <div className="rounded-lg border border-purple-900/40 bg-purple-900/10 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-purple-300 mb-1">
                   <Building2 size={14} />
@@ -209,7 +236,9 @@ export default function UsuariosPage() {
                 )}
                 {!selectedInstitucionId && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Nombre de nueva institución {instituciones.length === 0 ? "*" : "(opcional si seleccionó una)"}</Label>
+                    <Label className="text-xs">
+                      Nombre de nueva institución{instituciones.length === 0 ? " *" : ""}
+                    </Label>
                     <Input
                       placeholder="Ej. Mi Empresa SpA"
                       value={newInstNombre}
@@ -221,21 +250,19 @@ export default function UsuariosPage() {
               </div>
             )}
 
-            {/* Sección contraseña */}
+            {/* Contraseña */}
             <div className="rounded-lg border border-border bg-background/50 p-4 space-y-3">
               <Label className="text-sm font-medium text-text-main">Contraseña inicial</Label>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setPasswordMode("auto")}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${passwordMode === "auto" ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:border-primary/50"}`}>
-                  <Mail className="h-3.5 w-3.5" /> Enviar por correo
-                </button>
-                <button type="button" onClick={() => setPasswordMode("manual")}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${passwordMode === "manual" ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:border-primary/50"}`}>
-                  <KeyRound className="h-3.5 w-3.5" /> Ingresar manualmente
-                </button>
+                {(["auto", "manual"] as const).map(m => (
+                  <button key={m} type="button" onClick={() => setPasswordMode(m)}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${passwordMode === m ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:border-primary/50"}`}>
+                    {m === "auto" ? <><Mail className="h-3.5 w-3.5" /> Enviar por correo</> : <><KeyRound className="h-3.5 w-3.5" /> Ingresar manualmente</>}
+                  </button>
+                ))}
               </div>
               {passwordMode === "auto" ? (
-                <p className="text-xs text-text-muted">Se enviará un correo al usuario con un enlace para activar su cuenta y establecer su contraseña (válido 72 h).</p>
+                <p className="text-xs text-text-muted">Se enviará un correo con un enlace de activación (válido 72 h).</p>
               ) : (
                 <div className="space-y-1">
                   <Label className="text-xs">Contraseña (mínimo 8 caracteres) *</Label>
@@ -274,7 +301,9 @@ export default function UsuariosPage() {
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Usuario</th>
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Correo</th>
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Rol</th>
-                <th className="px-4 py-3 text-left font-medium text-text-muted">Institución</th>
+                {isVantix && (
+                  <th className="px-4 py-3 text-left font-medium text-text-muted">Institución</th>
+                )}
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Estado</th>
                 <th className="px-4 py-3 text-left font-medium text-text-muted">Cambiar rol</th>
               </tr>
@@ -294,11 +323,18 @@ export default function UsuariosPage() {
                         {rol}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-text-muted text-xs">
-                      {inst ? (
-                        <span className="inline-flex items-center gap-1"><Building2 size={11} className="text-purple-400" />{inst}</span>
-                      ) : <span className="text-text-muted/40">—</span>}
-                    </td>
+                    {isVantix && (
+                      <td className="px-4 py-3 text-xs text-text-muted">
+                        {inst ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Building2 size={11} className="text-purple-400 shrink-0" />
+                            {inst}
+                          </span>
+                        ) : (
+                          <span className="text-text-muted/40">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium ${u.confirmado ? "text-green-400" : "text-yellow-400"}`}>
                         {u.confirmado ? "Verificado" : "Pendiente"}
@@ -314,7 +350,7 @@ export default function UsuariosPage() {
                           onChange={e => handleCambiarRol(String(u.id), e.target.value)}
                           className="rounded-md border border-border bg-background px-2 py-1 text-xs text-text-main focus:outline-none focus:ring-1 focus:ring-primary"
                         >
-                          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                          {ROLES_DISPONIBLES.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       )}
                     </td>
